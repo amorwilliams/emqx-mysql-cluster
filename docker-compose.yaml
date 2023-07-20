@@ -1,0 +1,84 @@
+version: "3"
+
+services:
+  emqx1:
+    image: emqx/emqx:latest
+    restart: always
+    environment:
+      - "EMQX_ALLOW_ANONYMOUS=false"
+      - "EMQX_ACL_NOMATCH=deny"
+      - "EMQX_NAME=emqx"
+      - "EMQX_HOST=node1.emqx.io"
+      - "EMQX_CLUSTER__DISCOVERY=static"
+      - "EMQX_CLUSTER__STATIC__SEEDS=emqx@node1.emqx.io,emqx@node2.emqx.io"
+      - "EMQX_AUTH__MYSQL__SERVER=192.168.3.42:3306"
+      - "EMQX_AUTH__MYSQL__POOL=8"
+      - "EMQX_AUTH__MYSQL__USERNAME=root"
+      - "EMQX_AUTH__MYSQL__PASSWORD=root"
+      - "EMQX_AUTH__MYSQL__DATABASE=mqtt"
+      - "EMQX_AUTH__MYSQL__QUERY_TIMEOUT=5s"
+      - "EMQX_AUTH__MYSQL__PASSWORD_HASH=sha256"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      # - ./emqx1/log:/opt/emqx/log
+      # - ./emqx1/data:/opt/emqx/data
+      - ./loaded_plugins:/opt/emqx/data/loaded_plugins:z
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx_ctl", "status"]
+      interval: 5s
+      timeout: 25s
+      retries: 5
+    networks:
+      emqx-bridge:
+        aliases:
+          - node1.emqx.io
+
+  emqx2:
+    image: emqx/emqx:latest
+    restart: always
+    environment:
+      - "EMQX_ALLOW_ANONYMOUS=false"
+      - "EMQX_ACL_NOMATCH=deny"
+      - "EMQX_NAME=emqx"
+      - "EMQX_HOST=node2.emqx.io"
+      - "EMQX_CLUSTER__DISCOVERY=static"
+      - "EMQX_CLUSTER__STATIC__SEEDS=emqx@node1.emqx.io,emqx@node2.emqx.io"
+      - "EMQX_AUTH__MYSQL__SERVER=192.168.3.42:3306"
+      - "EMQX_AUTH__MYSQL__POOL=8"
+      - "EMQX_AUTH__MYSQL__USERNAME=root"
+      - "EMQX_AUTH__MYSQL__PASSWORD=root"
+      - "EMQX_AUTH__MYSQL__DATABASE=mqtt"
+      - "EMQX_AUTH__MYSQL__QUERY_TIMEOUT=5s"
+      - "EMQX_AUTH__MYSQL__PASSWORD_HASH=sha256"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      # - ./emqx2/log:/opt/emqx/log
+      # - ./emqx2/data:/opt/emqx/data
+      - ./loaded_plugins:/opt/emqx/data/loaded_plugins:z
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx_ctl", "status"]
+      interval: 5s
+      timeout: 25s
+      retries: 5
+    networks:
+      emqx-bridge:
+        aliases:
+          - node2.emqx.io
+
+  nginx:
+    image: nginx:latest
+    restart: always
+    ports:
+      - 1883:1883
+      - 8083:8083
+      - 18083:18083
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx:/var/log/nginx/
+    networks:
+      emqx-bridge:
+
+networks:
+  emqx-bridge:
+    driver: bridge
